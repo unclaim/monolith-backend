@@ -28,7 +28,7 @@ jobs:
 
     - name: Upload coverage report to Codecov
       if: success()
-      uses: codecov/github-action@v3
+      uses: codecov/github-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
