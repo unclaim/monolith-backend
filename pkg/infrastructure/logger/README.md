@@ -1,3 +1,5 @@
+# Логгер (pkg/infrastructure/logger/logger.go)
+```go
 package logger
 
 import (
@@ -14,7 +16,7 @@ func SetupLogger(env string) *slog.Logger {
 	switch env {
 	case "development":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level:     slog.LevelDebug,
+			Level: slog.LevelDebug,
 			AddSource: true, // Добавляем информацию о файле и строке
 		}))
 	case "production":
@@ -30,3 +32,9 @@ func SetupLogger(env string) *slog.Logger {
 	slog.SetDefault(log) // Устанавливаем наш логгер как дефолтный
 	return log
 }
+```
+
+# Пояснение:
+Мы используем стандартную библиотеку log/slog.
+В зависимости от APP_ENV (development, production), логгер будет выводить логи в разных форматах: текстовом (для разработки, с указанием файла и строки) или JSON (для продакшна, что удобно для парсинга системами логирования).
+slog.SetDefault(log) делает наш настроенный логгер доступным глобально, поэтому в любом месте кода можно вызвать slog.Info(), slog.Error() и т.д.
