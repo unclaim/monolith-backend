@@ -1,79 +1,79 @@
-# Шина событий (pkg/infrastructure/eventbus/eventbus.go)
+# pkg/infrastructure/eventbus/eventbus.go - Наша Шина Новостей (In-Memory)
+Это наша шина новостей. Она позволяет разным частям приложения "публиковать" (отправлять) новости и "подписываться" (слушать) на них. Эта версия очень простая и работает только пока приложение запущено (in-memory).
+
 ```go
 package eventbus
 
 import (
-	"log/slog"
-	"sync"
+	"context"
+	"log/slog" // Для записи логов
+	"sync"      // Для безопасной работы с данными одновременно
 )
 
-// Event представляет собой интерфейс для любого события, которое может быть опубликовано.
+// Event - это то, что мы отправляем по шине новостей. У каждой новости есть тип.
 type Event interface {
-	EventType() string
+	EventType() string // Тип новости (например, "UserRegistered")
 }
 
-// EventHandler представляет собой функцию-обработчик для конкретного типа события.
-type EventHandler func(event Event)
+// EventHandler - это тот, кто умеет слушать и обрабатывать новости.
+type EventHandler func(ctx context.Context, event Event) error
 
-// EventBus определяет интерфейс шины событий.
+// EventBus - это наша шина новостей. Это обещание (интерфейс), как она должна работать.
 type EventBus interface {
-	Publish(event Event)
-	Subscribe(eventType string, handler EventHandler)
+	Publish(ctx context.Context, event Event) error          // Опубликовать новость
+	Subscribe(eventType string, handler EventHandler) error  // Подписаться на новости определенного типа
 }
 
-// InMemoryEventBus implements EventBus for in-memory event dispatching.
+// InMemoryEventBus - это простая версия шины новостей, которая работает в памяти.
 type InMemoryEventBus struct {
+	// Это как блокнот, где для каждого типа новости (ключа) записаны все, кто на нее подписан (значение).
 	handlers map[string][]EventHandler
-	mu       sync.RWMutex
-	log      *slog.Logger
+	mu       sync.RWMutex // Замок, чтобы никто не мешал друг другу записывать или читать
+	logger   *slog.Logger // Наш логгер для записи происходящего
 }
 
-// NewInMemoryEventBus создает новый экземпляр InMemoryEventBus.
-func NewInMemoryEventBus(log *slog.Logger) *InMemoryEventBus {
+// NewInMemoryEventBus создает новую шину новостей.
+func NewInMemoryEventBus(logger *slog.Logger) *InMemoryEventBus {
 	return &InMemoryEventBus{
 		handlers: make(map[string][]EventHandler),
-		log:      log,
+		logger:   logger,
 	}
 }
 
-// Publish отправляет событие всем подписанным обработчикам.
-func (eb *InMemoryEventBus) Publish(event Event) {
-	eb.mu.RLock()
-	defer eb.mu.RUnlock()
+// Publish - метод для публикации новости.
+func (eb *InMemoryEventBus) Publish(ctx context.Context, event Event) error {
+	eb.mu.RLock()         // Берем замок для чтения (мы не меняем список подписчиков)
+	defer eb.mu.RUnlock() // Отпускаем замок, когда закончим
 
 	eventType := event.EventType()
-	if handlers, ok := eb.handlers[eventType]; ok {
-		eb.log.Debug("Публикация события", "тип", eventType)
-		// Запускаем каждый обработчик в отдельной горутине, чтобы не блокировать публикатора.
-		// Важно: обработчики должны быть идемпотентны и не зависеть от порядка выполнения,
-		// так как нет гарантий порядка при параллельной обработке.
-		for _, handler := range handlers {
-			go func(h EventHandler, e Event) {
-				defer func() {
-					if r := recover(); r != nil {
-						eb.log.Error("Паника в обработчике события", "тип", eventType, "recover", r)
-					}
-				}()
-				h(e)
-			}(handler, event)
-		}
-	} else {
-		eb.log.Debug("Нет обработчиков для события", "тип", eventType)
+	handlers, ok := eb.handlers[eventType]
+	if !ok {
+		eb.logger.Debug("Нет подписчиков для события", "тип", eventType)
+		return nil // Никто не слушает эту новость, это нормально
 	}
+
+	// Отправляем новость всем, кто на нее подписан.
+	for _, handler := range handlers {
+		// Запускаем обработчик в отдельной "нитью" (горутине), чтобы он не блокировал
+		// отправку других новостей.
+		go func(h EventHandler) {
+			if err := h(ctx, event); err != nil {
+				eb.logger.Error("Ошибка обработки события", "тип", eventType, "error", err)
+			}
+		}(handler)
+	}
+	return nil
 }
 
-// Subscribe подписывает обработчик на определенный тип события.
-func (eb *InMemoryEventBus) Subscribe(eventType string, handler EventHandler) {
-	eb.mu.Lock()
-	defer eb.mu.Unlock()
+// Subscribe - метод для подписки на новости.
+func (eb *InMemoryEventBus) Subscribe(eventType string, handler EventHandler) error {
+	eb.mu.Lock()          // Берем замок для записи (мы меняем список подписчиков)
+	defer eb.mu.Unlock()  // Отпускаем замок, когда закончим
 
 	eb.handlers[eventType] = append(eb.handlers[eventType], handler)
-	eb.log.Info("Обработчик успешно подписан на событие", "тип", eventType)
+	eb.logger.Info("Подписан новый обработчик", "тип_события", eventType)
+	return nil
 }
 
+
 ```
-# Пояснение:
-Event и EventHandler определяют интерфейсы для событий и их обработчиков.
-InMemoryEventBus — простая реализация шины событий, которая хранит обработчики в памяти.
-Publish отправляет событие. Каждый обработчик запускается в отдельной горутине, чтобы публикатор не ждал завершения всех обработчиков.
-Subscribe позволяет зарегистрировать обработчик для определенного типа события.
