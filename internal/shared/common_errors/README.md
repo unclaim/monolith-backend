@@ -1,3 +1,5 @@
+# Общие ошибки (internal/shared/common_errors/errors.go)
+```go
 package common_errors
 
 import (
@@ -7,25 +9,25 @@ import (
 
 // ErrorResponse представляет собой стандартизированную структуру для HTTP-ответов об ошибках.
 type ErrorResponse struct {
-	Message string            `json:"message"`
-	Code    string            `json:"code,omitempty"`
+	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
 	Details map[string]string `json:"details,omitempty"`
 }
 
 // BaseError представляет базовый интерфейс для всех доменных ошибок.
 type BaseError interface {
-	Error() string              // Реализация интерфейса error
-	HTTPStatus() int            // Возвращает соответствующий HTTP-статус
-	ErrorCode() string          // Возвращает код ошибки (например, "AUTH_INVALID_CREDENTIALS")
+	Error() string // Реализация интерфейса error
+	HTTPStatus() int // Возвращает соответствующий HTTP-статус
+	ErrorCode() string // Возвращает код ошибки (например, "AUTH_INVALID_CREDENTIALS")
 	Details() map[string]string // Возвращает дополнительные детали ошибки
 }
 
 // AppError является общей реализацией BaseError для ошибок приложения.
 type AppError struct {
-	Msg         string
-	Status      int
-	Code        string
-	ErrDetails  map[string]string
+	Msg      string
+	Status   int
+	Code     string
+	ErrDetails map[string]string
 	InternalErr error // Внутренняя ошибка, которую не следует раскрывать клиенту
 }
 
@@ -36,9 +38,9 @@ func NewAppError(status int, code, msg string, details ...map[string]string) *Ap
 		errDetails = details[0]
 	}
 	return &AppError{
-		Msg:        msg,
-		Status:     status,
-		Code:       code,
+		Msg:      msg,
+		Status:   status,
+		Code:     code,
 		ErrDetails: errDetails,
 	}
 }
@@ -50,13 +52,14 @@ func WrapAppError(internalErr error, status int, code, msg string, details ...ma
 		errDetails = details[0]
 	}
 	return &AppError{
-		Msg:         msg,
-		Status:      status,
-		Code:        code,
-		ErrDetails:  errDetails,
+		Msg:      msg,
+		Status:   status,
+		Code:     code,
+		ErrDetails: errDetails,
 		InternalErr: internalErr,
 	}
 }
+
 
 // Error реализует интерфейс error.
 func (e *AppError) Error() string {
@@ -81,6 +84,7 @@ func (e *AppError) Details() map[string]string {
 	return e.ErrDetails
 }
 
+
 // Предопределенные стандартные ошибки приложения
 var (
 	ErrInternalServer = NewAppError(http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "Произошла внутренняя ошибка сервера.")
@@ -90,3 +94,10 @@ var (
 	ErrForbidden      = NewAppError(http.StatusForbidden, "FORBIDDEN", "У вас нет прав для доступа к этому ресурсу.")
 	ErrConflict       = NewAppError(http.StatusConflict, "CONFLICT", "Конфликт данных, ресурс с такими параметрами уже существует.")
 )
+```
+
+# Пояснение:
+Мы определяем стандартную структуру ErrorResponse для единообразных ответов об ошибках клиенту.
+BaseError: Это интерфейс, который должны реализовать все доменные ошибки. Это позволяет нам централизованно обрабатывать ошибки в HTTP-слое, определяя HTTP-статус, код ошибки и детали.
+AppError: Базовая реализация BaseError. Она позволяет обернуть внутренние ошибки (которые мы не хотим показывать клиенту) и предоставляет поля для сообщения, HTTP-статуса и кода ошибки.
+Предопределенные ошибки, такие как ErrInternalServer, ErrNotFound, упрощают создание типичных ответов.

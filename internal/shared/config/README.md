@@ -1,3 +1,5 @@
+# Конфигурация (internal/shared/config/config.go)
+```go
 package config
 
 import (
@@ -11,20 +13,20 @@ import (
 
 // Config содержит все настройки приложения, загруженные из переменных окружения.
 type Config struct {
-	Env        string `env:"APP_ENV,required"`
-	Port       string `env:"APP_PORT,required"`
-	SecretKey  string `env:"APP_SECRET_KEY,required"`
-	CSRFSecret string `env:"APP_CSRF_SECRET,required"`
+	Env            string `env:"APP_ENV,required"`
+	Port           string `env:"APP_PORT,required"`
+	SecretKey      string `env:"APP_SECRET_KEY,required"`
+	CSRFSecret     string `env:"APP_CSRF_SECRET,required"`
 
 	Postgres struct {
-		Host            string        `env:"POSTGRES_HOST,required"`
-		Port            string        `env:"POSTGRES_PORT,required"`
-		User            string        `env:"POSTGRES_USER,required"`
-		Password        string        `env:"POSTGRES_PASSWORD,required"`
-		DBName          string        `env:"POSTGRES_DB,required"`
-		SSLMode         string        `env:"POSTGRES_SSLMODE,required"`
-		MaxConnections  int           `env:"POSTGRES_MAX_CONN,default=10"`
-		MaxIdleConns    int           `env:"POSTGRES_MAX_IDLE_CONN,default=5"`
+		Host            string `env:"POSTGRES_HOST,required"`
+		Port            string `env:"POSTGRES_PORT,required"`
+		User            string `env:"POSTGRES_USER,required"`
+		Password        string `env:"POSTGRES_PASSWORD,required"`
+		DBName          string `env:"POSTGRES_DB,required"`
+		SSLMode         string `env:"POSTGRES_SSLMODE,required"`
+		MaxConnections  int    `env:"POSTGRES_MAX_CONN,default=10"`
+		MaxIdleConns    int    `env:"POSTGRES_MAX_IDLE_CONN,default=5"`
 		ConnMaxLifetime time.Duration `env:"POSTGRES_CONN_MAX_LIFETIME,default=5m"`
 	}
 
@@ -63,7 +65,7 @@ func LoadConfig(log *slog.Logger) (*Config, error) {
 	}
 
 	cfg := &Config{}
-
+	
 	// Общие настройки
 	cfg.Env = getEnv("APP_ENV", "development")
 	cfg.Port = getEnv("APP_PORT", "8080")
@@ -121,28 +123,36 @@ func getEnv(key, defaultValue string) string {
 }
 
 func getEnvAsInt(name string, defaultVal int) int {
-	valueStr := getEnv(name, "")
-	if valueStr == "" {
-		return defaultVal
-	}
-	var value int
-	_, err := fmt.Sscanf(valueStr, "%d", &value)
-	if err != nil {
-		slog.Default().Warn("Некорректное значение переменной окружения", "переменная", name, "значение", valueStr, "ошибка", err, "используется_по_умолчанию", defaultVal)
-		return defaultVal
-	}
-	return value
+    valueStr := getEnv(name, "")
+    if valueStr == "" {
+        return defaultVal
+    }
+    var value int
+    _, err := fmt.Sscanf(valueStr, "%d", &value)
+    if err != nil {
+        slog.Default().Warn("Некорректное значение переменной окружения", "переменная", name, "значение", valueStr, "ошибка", err, "используется_по_умолчанию", defaultVal)
+        return defaultVal
+    }
+    return value
 }
 
 func getEnvAsDuration(name string, defaultVal time.Duration) time.Duration {
-	valueStr := getEnv(name, "")
-	if valueStr == "" {
-		return defaultVal
-	}
-	duration, err := time.ParseDuration(valueStr)
-	if err != nil {
-		slog.Default().Warn("Некорректное значение переменной окружения", "переменная", name, "значение", valueStr, "ошибка", err, "используется_по_умолчанию", defaultVal)
-		return defaultVal
-	}
-	return duration
+    valueStr := getEnv(name, "")
+    if valueStr == "" {
+        return defaultVal
+    }
+    duration, err := time.ParseDuration(valueStr)
+    if err != nil {
+        slog.Default().Warn("Некорректное значение переменной окружения", "переменная", name, "значение", valueStr, "ошибка", err, "используется_по_умолчанию", defaultVal)
+        return defaultVal
+    }
+    return duration
 }
+```
+
+Добавь зависимость: В корне проекта выполни: go get github.com/joho/godotenv
+# Пояснение:
+Используем пакет github.com/joho/godotenv для удобной загрузки переменных окружения из файла .env в режиме разработки.
+Структура Config содержит все необходимые настройки, разбитые по категориям (общие, PostgreSQL, Redis, MongoDB, Email).
+Функция LoadConfig загружает значения из окружения, предоставляя значения по умолчанию, если переменная не установлена. Это делает наше приложение более гибким.
+Мы проверяем наличие критически важных секретов, чтобы приложение не запустилось без них.
