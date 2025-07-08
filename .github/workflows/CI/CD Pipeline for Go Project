@@ -1,0 +1,67 @@
+name: CI/CD Pipeline for Go Project
+
+on:
+  push:
+    branches: [ "main" ]  # Активация pipeline при пушах в основную ветку
+  pull_request:
+    branches: [ "main" ]  # Активация pipeline при создании Pull Request'ов
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ^1.20.x
+
+    - name: Lint using golangci-lint
+      run: |
+        curl -sfL https://install.goreleaser.com/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
+        $(go env GOPATH)/bin/golangci-lint run
+
+    - name: Run tests
+      run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+    - name: Upload coverage report to Codecov
+      if: success()
+      uses: codecov/github-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  build_and_deploy:
+    needs: lint_and_test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ^1.20.x
+
+    - name: Build binary
+      run: go build -v -o bin/myapp ./cmd/myapp
+
+    - name: Create release artifact
+      run: tar czvf artifacts.tar.gz bin/*
+
+    - name: Deploy Artifact to GitHub Releases
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts.tar.gz
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push Docker image to registry
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: Dockerfile
+        tags: myusername/myrepo:${{ github.run_number }}
+        push: true
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
