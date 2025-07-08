@@ -12,7 +12,7 @@ COPY go.mod .
 RUN go mod download
 
 # Копируем исходники приложения
-COPY *.go .
+COPY cmd/server/*.go .
 
 # Собираем бинарник
 RUN CGO_ENABLED=0 GOOS=linux go build -o app
