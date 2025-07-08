@@ -21,8 +21,8 @@ jobs:
     # Линтинг кода
     - name: Run linter
       run: |
-        go install gopkg.in/golint.v2@latest
-        golint ./...
+        go install github.com/mgechev/revive@latest
+        revive ./...
 
     # Сборка приложения
     - name: Build
