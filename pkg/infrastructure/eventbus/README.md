@@ -1,3 +1,5 @@
+# Шина событий (pkg/infrastructure/eventbus/eventbus.go)
+```go
 package eventbus
 
 import (
@@ -68,3 +70,10 @@ func (eb *InMemoryEventBus) Subscribe(eventType string, handler EventHandler) {
 	eb.handlers[eventType] = append(eb.handlers[eventType], handler)
 	eb.log.Info("Обработчик успешно подписан на событие", "тип", eventType)
 }
+
+```
+# Пояснение:
+Event и EventHandler определяют интерфейсы для событий и их обработчиков.
+InMemoryEventBus — простая реализация шины событий, которая хранит обработчики в памяти.
+Publish отправляет событие. Каждый обработчик запускается в отдельной горутине, чтобы публикатор не ждал завершения всех обработчиков.
+Subscribe позволяет зарегистрировать обработчик для определенного типа события.
